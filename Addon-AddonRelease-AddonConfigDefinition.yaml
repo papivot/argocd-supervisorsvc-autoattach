@@ -1,0 +1,75 @@
+#
+# This file needs to be installed on the Supervisor - or deployed via a Supervisor Service
+#
+apiVersion: addons.kubernetes.vmware.com/v1alpha1
+kind: Addon
+metadata:
+  name: argocd-cluster-attach
+  namespace: vmware-system-vks-public
+  labels:
+    addon.kubernetes.vmware.com/addon-name: argocd-cluster-attach
+spec:
+  description: >-
+    Automatically registers VKS workload clusters as target clusters in
+    an ArgoCD instance running on the Supervisor. Creates the required
+    ArgoCD cluster secret with authentication credentials extracted from
+    the VKS cluster's kubeconfig.
+---
+apiVersion: addons.kubernetes.vmware.com/v1alpha1
+kind: AddonRelease
+metadata:
+  name: argocd-cluster-attach-1.0.0
+  namespace: vmware-system-vks-public
+  labels:
+    addon.kubernetes.vmware.com/addon-name: argocd-cluster-attach
+spec:
+  addonConfigDefinitionRef:
+    name: argocd-cluster-attach-1.0.0
+    namespace: vmware-system-vks-public
+  addonRef:
+    name: argocd-cluster-attach
+    namespace: vmware-system-vks-public
+  version: 1.0.0
+---
+apiVersion: addons.kubernetes.vmware.com/v1alpha1
+kind: AddonConfigDefinition
+metadata:
+  name: argocd-cluster-attach-1.0.0
+  namespace: vmware-system-vks-public
+spec:
+  schema:
+    openAPIV3Schema:
+      type: object
+      properties:
+        argocdNamespace:
+          type: string
+          description: Namespace where ArgoCD is installed on the Supervisor
+          default: "argocd"
+        argocdProject:
+          type: string
+          description: ArgoCD project to associate the cluster with
+          default: "default"
+
+  templateInputResources:
+  - inputName: clusterKubeconfig
+    apiVersion: v1
+    kind: Secret
+    name: "{{.Cluster.name}}-kubeconfig"
+
+  templateOutputResources:
+  - supervisorNamespaceOutput:
+      apiVersion: v1
+      kind: Secret
+      name: "argocd-cluster-{{.Cluster.name}}"
+    template: |
+      stringData:
+        managed-by: argocd-cluster-attach
+        name: "{{.Cluster.namespace}}/{{.Cluster.name}}"
+        server: "{{ getClusterServer (parseClusterInfo (decodebase64 .Dependencies.clusterKubeconfig.data.value)) }}"
+        config: |
+          {
+            "tlsClientConfig": {
+              "insecure": false,
+              "caData": "{{ encodebase64 (printf "%s" (parseClusterInfo (decodebase64 .Dependencies.clusterKubeconfig.data.value)).CertificateAuthorityData) }}"
+            }
+          }
