@@ -20,14 +20,14 @@ metadata:
   namespace: demo1 # Your vSphere namespace
 spec:
   values:
-    argocdNamespace: demo1
+    argocdNamespace: demo1  # Your vSphere namespace
     argocdProject: default
 ---
 apiVersion: cluster.x-k8s.io/v1beta2
 kind: Cluster
 metadata:
   name: workload-vsphere-vks1
-  namespace: demo1
+  namespace: demo1 # Your vSphere namespace
 spec:
   clusterNetwork:
     pods:
@@ -52,7 +52,7 @@ spec:
       replicas: 1
     variables:
     - name: storageClass
-      value: tanzu
+      value: tanzu # Your storageClass
     - name: vmClass
       value: best-effort-medium
     - name: volumes
@@ -60,11 +60,11 @@ spec:
       - capacity: 15Gi
         mountPath: /var/lib/containerd
         name: containerd
-        storageClass: tanzu
+        storageClass: tanzu # Your storageClass
       - capacity: 15Gi
         mountPath: /var/lib/kubelet
         name: kubelet
-        storageClass: tanzu
+        storageClass: tanzu # Your storageClass
     - name: kubernetes
       value:
         certificateRotation:
@@ -83,8 +83,8 @@ spec:
       value:
         persistentVolumes:
           availableStorageClasses:
-          - tanzu
-          defaultStorageClass: tanzu
+          - tanzu # Your storageClass
+          defaultStorageClass: tanzu # Your storageClass
     - name: osConfiguration
       value:
         ntp:
