@@ -11,7 +11,7 @@ graph TD
     subgraph Supervisor
         ACD["AddonConfigDefinition<br/>(argocd-cluster-attach)"]
         AI["AddonInstall<br/>(selects VKS clusters)"]
-        CA["ClusterAddon<br/>(per-cluster)"]
+        CA["Addon<br/>(per-cluster)"]
         AC["AddonConfig<br/>(per-cluster)"]
         KC["Secret: &lt;cluster&gt;-kubeconfig"]
         CS["ArgoCD Cluster Secret<br/>(in cluster namespace)"]
@@ -47,12 +47,9 @@ graph TD
 
 | File | Description |
 |------|-------------|
-| `addonconfigdefinition.yaml` | ACD — extracts kubeconfig and creates ArgoCD cluster secret |
-| `addon-and-release.yaml` | Addon and AddonRelease metadata |
-| `addoninstall.yaml` | AddonInstall + example AddonConfig |
-| `addonconfig-example.yaml` | Day0 AddonConfig template for per-cluster overrides |
+| `Addon-AddonRelease-AddonConfigDefinition.yaml` | Addon and AddonRelease metadata + ACD — extracts kubeconfig and creates ArgoCD cluster secret |
+| `AddonInstall-AddonConfig-Cluster.yaml` | AddonInstall + example AddonConfig + sample Cluster def. |
 | `argocd-secret-labeler.yaml` | Deployment that auto-labels secrets for ArgoCD discovery |
-| `label-cluster-secret.sh` | Manual script for one-off secret labeling |
 
 ## Prerequisites
 
@@ -64,14 +61,13 @@ graph TD
 ### Step 1: Apply the ACD and addon metadata
 
 ```bash
-kubectl apply -f addonconfigdefinition.yaml
-kubectl apply -f addon-and-release.yaml
+kubectl apply -f Addon-AddonRelease-AddonConfigDefinition.yaml
 ```
 
 ### Step 2: Deploy the secret labeler
 
 The labeler runs as a lightweight Deployment and automatically labels secrets
-created by the ACD so ArgoCD discovers them.
+created by the ACD, so ArgoCD discovers them.
 
 ```bash
 kubectl apply -f argocd-secret-labeler.yaml
@@ -79,10 +75,10 @@ kubectl apply -f argocd-secret-labeler.yaml
 
 ### Step 3: Install the addon on target clusters
 
-Edit `addoninstall.yaml` to select the desired namespace and clusters, then:
+Edit `AddonInstall-AddonConfig-Cluster.yaml` to select the desired namespace and clusters, then:
 
 ```bash
-kubectl apply -f addoninstall.yaml
+kubectl apply -f AddonInstall-AddonConfig-Cluster.yaml
 ```
 
 ## Verification
@@ -98,34 +94,6 @@ kubectl get secret -n demo1 argocd-cluster-workload-vsphere-vks1 \
 # Check ArgoCD sees the cluster
 argocd cluster list
 ```
-
-## ACD Template Variables Reference
-
-Discovered through testing on a live Supervisor:
-
-| Variable | Type | Description |
-|----------|------|-------------|
-| `.Cluster.name` | string | VKS cluster name |
-| `.Cluster.namespace` | string | Cluster namespace |
-| `.Cluster.uid` | string | Cluster UID |
-| `.Cluster.labels` | map | Cluster labels |
-| `.Cluster.annotations` | map | Cluster annotations |
-| `.Infrastructure` | string | Infrastructure provider (e.g. `vsphere`) |
-| `.Values.<field>` | varies | User-provided values from AddonConfig |
-| `.Dependencies.<inputName>` | map | Resources fetched via `templateInputResources` |
-
-### Custom template functions
-
-| Function | Input | Output |
-|----------|-------|--------|
-| `decodebase64` | base64 string | decoded string |
-| `encodebase64` | string | base64 string |
-| `parseClusterInfo` | kubeconfig YAML string | `*api.Cluster` object |
-| `getClusterServer` | `*api.Cluster` object | server URL string |
-| `parseAddressFromURL` | URL string | host/address string |
-| `parsePortFromURL` | URL string | port string |
-| `hasKey` | map, key string | bool |
-| `toYaml` | object | YAML string |
 
 ### Known ACD limitations
 
